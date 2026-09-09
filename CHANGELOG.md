@@ -4,6 +4,12 @@ Weights: https://huggingface.co/conradlocke/krea2-identity-edit
 v1.2 updates the **nodes** (see below); they stay backward-compatible with v1/v1.1
 weights via `fit_mode: crop`.
 
+## Unreleased
+
+### Added
+- Depth-control composition: control features are applied to target tokens while
+  identity reference tokens keep the base Krea 2 projection.
+
 ## v1.2.5 — 2026-07-29
 
 ### Added

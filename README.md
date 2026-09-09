@@ -80,6 +80,13 @@ EmptySD3LatentImage ─┬─ KSampler.latent_image
 Example workflow in `workflows/`: `krea2_identity_edit.json` — single-image editor by
 default; enable group 2 (toggle its Bypass off) for two-image person-into-scene edits.
 
+### Depth control
+
+Depth control composes with identity edit. Apply the identity LoRA, load/apply the
+Krea 2 depth-control adapter, then connect `Krea2EditModelPatch` last. The depth
+projection controls only the noisy target; clean identity references continue through
+Krea 2's base projection.
+
 ## Usage notes (read these — they matter)
 
 1. **Aspect ratio.** With `fit_mode: fit` (default in v1.2) and `vae` + `source_image`

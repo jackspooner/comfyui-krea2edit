@@ -209,7 +209,9 @@ def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options
     context = m._unpack_context(context)                       # (B, seq, 12, 2560)
 
     tgt_img = m.first(rearrange(x, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch, pw=patch))
-    src_imgs = [m.first(rearrange(s_, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch, pw=patch))
+    # Control adapters widen only the noisy target projection; clean edit references use Krea's base projection.
+    source_first = getattr(m.first, "original_first", None) or m.first
+    src_imgs = [source_first(rearrange(s_, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch, pw=patch))
                 for s_ in srcs]
 
     t = m.tmlp(timestep_embedding(timesteps, m.tdim).unsqueeze(1).to(tgt_img.dtype))
