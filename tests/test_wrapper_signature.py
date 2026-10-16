@@ -59,6 +59,12 @@ class _FakeModelPatcher:
         self.model = _FakeInner()
         self.model_options = {}
 
+    def get_model_object(self, name):
+        return lambda **kwargs: {}
+
+    def add_object_patch(self, name, value):
+        pass
+
     def clone(self):
         c = _FakeModelPatcher()
         c.model = self.model  # share inner model, like the real clone

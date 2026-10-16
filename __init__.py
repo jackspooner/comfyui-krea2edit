@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 import comfy.patcher_extension
+import comfy.conds
 import comfy.utils
 import comfy.ldm.common_dit
 from comfy.ldm.flux.layers import timestep_embedding
@@ -170,7 +171,7 @@ def _ref_attn_bias(boosts, boost_mask, txtlen, slens, tgtlen, mask_hw, device, d
 
 def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options,
                        ref_boost=1.0, ref_boost_a=1.0, ref_boost_mask=None,
-                       ref_native=False, pos_mode="anchor"):
+                       ref_native=False, pos_mode="anchor", context_preprocessed=False):
     """Krea2 SingleStreamDiT._forward, but with source block(s) prepended.
 
     m           : the SingleStreamDiT (LoRA-patched at sample time)
@@ -206,8 +207,6 @@ def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options
         srcs.append(comfy.ldm.common_dit.pad_to_patch_size(src, (patch, patch), padding_mode="replicate"))
     src_grids = [(s_.shape[-2] // patch, s_.shape[-1] // patch) for s_ in srcs]
 
-    context = m._unpack_context(context)                       # (B, seq, 12, 2560)
-
     tgt_img = m.first(rearrange(x, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch, pw=patch))
     # Control adapters widen only the noisy target projection; clean edit references use Krea's base projection.
     source_first = getattr(m.first, "original_first", None) or m.first
@@ -217,8 +216,8 @@ def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options
     t = m.tmlp(timestep_embedding(timesteps, m.tdim).unsqueeze(1).to(tgt_img.dtype))
     tvec = m.tproj(t)
 
-    context = m.txtfusion(context, mask=None, transformer_options=transformer_options)
-    context = m.txtmlp(context)
+    if not context_preprocessed:
+        context = m.preprocess_text_embeds(context, transformer_options=transformer_options)
 
     txtlen, tgtlen = context.shape[1], tgt_img.shape[1]
     srclen = sum(si.shape[1] for si in src_imgs)
@@ -249,8 +248,7 @@ def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options
     for block in m.blocks:
         combined = block(combined, tvec, freqs, attn_bias, transformer_options=transformer_options)
 
-    final = m.last(combined, t)
-    out = final[:, txtlen + srclen: txtlen + srclen + tgtlen, :]         # target tokens only
+    out = m.last(combined[:, txtlen + srclen: txtlen + srclen + tgtlen], t)
     out = rearrange(out, "b (h w) (c ph pw) -> b c (h ph) (w pw)",
                     h=h_, w=w_, ph=patch, pw=patch, c=m.channels)
     out = out[:, :, :H_orig, :W_orig]
@@ -372,9 +370,37 @@ class Krea2EditModelPatch:
                                    ref_boost_mask=ref_boost_mask,
                                    ref_native=(fit_mode == "fit" and vae is not None
                                                and source_image is not None),
-                                   pos_mode=("stride1" if fit_mode == "fit" else "anchor"))
+                                   pos_mode=("stride1" if fit_mode == "fit" else "anchor"),
+                                   context_preprocessed=kwargs.get("krea2_context_preprocessed", False))
             return v
 
+        original_extra_conds = m.get_model_object("extra_conds")
+
+        def extra_conds(**kwargs):
+            out = original_extra_conds(**kwargs)
+            patcher = mm.current_patcher
+            if kwargs.get("cross_attn") is None or patcher is None:
+                return out
+            options = patcher.model_options.get("transformer_options", {})
+            # These extensions can change fusion weights or attention during sampling.
+            if (kwargs.get("hooks") is not None or patcher.hook_patches or patcher.forced_hooks
+                    or options.get("patches") or options.get("patches_replace")
+                    or options.get("optimized_attention_override")
+                    or patcher.model_options.get("model_function_wrapper")
+                    or patcher.get_all_callbacks(comfy.patcher_extension.CallbacksMP.ON_PREPARE_STATE)
+                    or patcher.get_all_callbacks(comfy.patcher_extension.CallbacksMP.ON_APPLY_HOOKS)
+                    or any(w for kind, w in options.get("wrappers", {}).items()
+                           if kind != comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL)
+                    or comfy.patcher_extension.get_all_wrappers(
+                        comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, options) != [wrapper]):
+                return out
+            context = kwargs["cross_attn"].to(device=kwargs["device"], dtype=mm.get_dtype_inference())
+            context = mm.diffusion_model.preprocess_text_embeds(context, transformer_options=options)
+            out["c_crossattn"] = comfy.conds.CONDRegular(context)
+            out["krea2_context_preprocessed"] = comfy.conds.CONDConstant(True)
+            return out
+
+        m.add_object_patch("extra_conds", extra_conds)
         to = m.model_options.setdefault("transformer_options", {})
         comfy.patcher_extension.add_wrapper_with_key(
             comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, "krea2_edit", wrapper, to

@@ -1,5 +1,28 @@
 # ComfyUI-Krea2Edit
 
+## Local inference efficiency
+
+This fork builds on [lbouaraba/comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)
+and its [README](https://github.com/lbouaraba/comfyui-krea2edit/blob/main/README.md).
+Upstream supplies grounded instruction encoding, source-image latent injection,
+identity-edit LoRA workflows and reference controls described below.
+
+The local source patch prepares static text fusion once per conditioning during
+sampler preparation and projects only target tokens at the output. It requires
+the paired ComfyUI fork's Krea 2 `preprocess_text_embeds` method and compact GQA
+support. Update both repositories together. No workflow inputs or checkpoint keys
+change; scheduled conditions are prepared separately, and dynamic hooks/attention
+patches keep per-step fusion. Fused tensors live in per-run conditioning, not a
+persistent model cache. Reference tokens still run through every transformer block.
+Boost behavior is unchanged. CPU fixtures verify numerical equivalence; full
+checkpoint GPU speed and memory gains require measurement after activation.
+
+For development, run `COMFYUI_ROOT=/absolute/ComfyUI COMFYUI_PYTHON=/absolute/prepared/python python3 scripts/setup_worktree.py`.
+Use the prepared ComfyUI Python >=3.10 environment with torch, einops, safetensors
+and pytest; setup only checks prerequisites and is safe to repeat. Run
+`PYTHONPATH="$COMFYUI_ROOT" "$COMFYUI_PYTHON" -m pytest -q tests` separately.
+See [AGENTS.md](AGENTS.md) for worktree and shared skill ownership.
+
 Instruction-based image editing for **Krea 2** in ComfyUI — the node pack that powers
 the **Krea 2 Identity Edit** LoRA. Turns Krea 2 (Raw or Turbo) into an image editor with dual
 conditioning: the source image is injected both as VAE latent tokens (appearance) and
