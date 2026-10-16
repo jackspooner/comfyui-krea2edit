@@ -1,3 +1,9 @@
+## Local workflow encoder selection
+
+Upstream: [comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit) and its [README](https://github.com/lbouaraba/comfyui-krea2edit/blob/main/README.md). lbouaraba provides instruction-based Krea 2 identity editing with grounded encoding, reference model patches and Identity Edit LoRA workflows. The upstream documentation, credits and licensing below are retained.
+
+This local checkout changes the bundled workflow examples to select `qwen3vl_8b_bf16.safetensors` from `models/text_encoders`, with CLIP type `krea2`. Any former 4B download metadata is removed from the changed examples; the selected file must already be installed. The installed ComfyUI Krea loader supports only 4B conditioning (12 layers × 2,560 features), so the 8B selection requires compatible encoder/model integration and is not verified for inference. The local change does not alter node interfaces.
+
 # ComfyUI-Krea2Edit
 
 ## Local inference efficiency
