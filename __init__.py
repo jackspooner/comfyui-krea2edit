@@ -282,8 +282,7 @@ def krea2_edit_forward(m, x, timesteps, context, src_latent, transformer_options
     for block in m.blocks:
         combined = block(combined, tvec, freqs, attn_bias, transformer_options=transformer_options)
 
-    final = m.last(combined, t)
-    out = final[:, txtlen + srclen: txtlen + srclen + tgtlen, :]         # target tokens only
+    out = m.last(combined[:, txtlen + srclen: txtlen + srclen + tgtlen], t)
     out = rearrange(out, "b (h w) (c ph pw) -> b c (h ph) (w pw)",
                     h=h_, w=w_, ph=patch, pw=patch, c=m.channels)
     out = out[:, :, :H_orig, :W_orig]

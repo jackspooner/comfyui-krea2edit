@@ -19,6 +19,18 @@ keep working with these nodes. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Installation
 
+### Output projection in this branch
+
+This branch builds on [lbouaraba/comfyui-krea2edit](https://github.com/lbouaraba/comfyui-krea2edit)
+and its [README](https://github.com/lbouaraba/comfyui-krea2edit/blob/main/README.md).
+Upstream supplies the grounded editing, reference controls and LoRA workflows
+described above. This branch applies the final output layer only to target tokens;
+text and references still run through every transformer block. It uses ordinary
+native Krea 2 support without additional core helpers or changed node inputs.
+Full-checkpoint GPU performance is not yet measured.
+
+### Setup
+
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/lbouaraba/comfyui-krea2edit
