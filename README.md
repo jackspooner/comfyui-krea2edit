@@ -27,7 +27,7 @@ For development, run `COMFYUI_ROOT=/absolute/ComfyUI COMFYUI_PYTHON=/absolute/pr
 Use the prepared ComfyUI Python >=3.10 environment with torch, einops, safetensors
 and pytest; setup only checks prerequisites and is safe to repeat. Run
 `PYTHONPATH="$COMFYUI_ROOT" "$COMFYUI_PYTHON" -m pytest -q tests` separately.
-See [AGENTS.md](AGENTS.md) for worktree and shared skill ownership.
+See [AGENTS.md](AGENTS.md) for native setup and CPU verification.
 
 Instruction-based image editing for **Krea 2** in ComfyUI — the node pack that powers
 the **Krea 2 Identity Edit** LoRA. Turns Krea 2 (Raw or Turbo) into an image editor with dual
